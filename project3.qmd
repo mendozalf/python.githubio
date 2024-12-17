@@ -1,0 +1,197 @@
+---
+title: "Client Report - Project 3"
+subtitle: "Course DS 250"
+author: "Luis Fernando Mendoza"
+format:
+  html:
+    self-contained: true
+    page-layout: full
+    title-block-banner: true
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-copy: hover
+    code-tools:
+        source: false
+        toggle: true
+        caption: See code
+execute: 
+  warning: false
+    
+---
+
+```{python}
+# Import libraries
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import sqlite3
+
+```
+
+
+## Elevator pitch
+Did you know that we have had 30 BYU-I former students playing in either the National League or the American League of baseball ?
+Would you like to know their names, the teams they played for, salaries they got, and year when they played?
+Stay with me and I will reveal all the secrets about the NLB/ALB players who attended BYU-I!
+
+
+```{python}
+# Establish connection to the SQLite database
+sqlite_file = 'lahmansbaseballdb.sqlite'
+con = sqlite3.connect(sqlite_file)
+```
+
+__Highlight the Questions and Tasks__
+
+## Question|Task 1
+
+Write an SQL query to create a new dataframe about baseball players who attended BYU-Idaho. The new table should contain five columns: playerID, schoolID, salary, and the yearID/teamID associated with each salary. Order the table by salary (highest to lowest) and print out the table in your report.
+
+```{python}
+# Create a query to display baseball players who attended BYU-Idaho and stored it in a variable.
+# The query select the required columns, join the tables, fileter it where the WHERE name_full LIKE 'Brigham Young University-Idaho', order the salary from highest to lowest, and limit the table to print 30 rows.
+a = '''
+SELECT sch.name_full, cp.playerID, sch.schoolID, s.salary, s.yearID, s.teamID, l.league
+FROM schools sch
+JOIN collegeplaying cp
+ON sch.schoolID = cp.schoolID
+JOIN salaries s
+ON cp.playerID = s.playerID
+JOIN leagues l
+ON s.lgID = l.lgID
+WHERE name_full LIKE 'Brigham Young University-Idaho'
+ORDER BY s.salary DESC
+LIMIT 30
+
+'''
+# Executes the SQL query b on the SQLite database connected via con and stores the results in a pandas DataFrame named results. 
+results = pd.read_sql_query(a, con)
+
+# Prints the 'results' DataFrame
+results
+```
+
+__Highlight the Questions and Tasks__
+
+## Question|Task 2 a
+This three-part question requires you to calculate batting average (number of hits divided by the number of at-bats)
+
+Write an SQL query that provides playerID, yearID, and batting average for players with at least 1 at bat that year. Sort the table from highest batting average to lowest, and then by playerid alphabetically. Show the top 5 results in your report.
+
+```{python}
+# Create a query to display the batting average for players with at least 1 at bat that year and stored it in a variable.
+# The query select the required columns, join the tables, fileter it where the school ID = byu, order the salary from highest to lowest, and limit the table to print 500 rows.
+b = '''
+SELECT playerID, yearID, ROUND(CAST(SUM(H) AS FLOAT)/ SUM(AB), 2) AS batting_average
+FROM batting
+WHERE AB >= 1
+GROUP BY playerID, yearID
+ORDER BY batting_average DESC, playerID ASC
+LIMIT 5
+
+'''
+
+# Executes the SQL query b on the SQLite database connected via con and stores the results in a pandas DataFrame named results. 
+results = pd.read_sql_query(b, con)
+
+# Prints the 'results' DataFrame
+results
+```
+
+__Highlight the Questions and Tasks__
+
+## Question|Task 2 b
+
+Use the same query as above, but only include players with at least 10 at bats that year. Print the top 5 results.
+
+```{python}
+# Create a query to display the batting average for players with at least 10 at bat that year and stored it in a variable.
+# The query select the required columns, join the tables, fileter it where the school ID = byu, order the salary from highest to lowest, and limit the table to print 500 rows.
+c = '''
+SELECT playerID, yearID, ROUND(CAST(SUM(H) AS FLOAT)/ SUM(AB), 2) AS batting_average
+FROM batting
+WHERE AB >= 10
+GROUP BY playerID, yearID
+ORDER BY batting_average DESC, playerID ASC
+LIMIT 5
+
+'''
+
+# Executes the SQL query b on the SQLite database connected via con and stores the results in a pandas DataFrame named results. 
+results = pd.read_sql_query(c, con)
+
+# Prints the 'results' DataFrame
+results
+```
+
+__Highlight the Questions and Tasks__
+
+## Question|Task 2 C
+
+Now calculate the batting average for players over their entire careers (all years combined). Only include players with at least 100 at bats, and print the top 5 results.
+
+```{python}
+# Create a query to display the batting average for players over their entire careers with at least 100 at bat .
+# The query select the required columns, join the tables, fileter it, and limit it to print 5 rows.
+e = '''
+SELECT playerID, ROUND(CAST(SUM(H) AS FLOAT)/ SUM(AB)/ COUNT(yearID), 2) AS batting_average
+FROM batting
+WHERE AB >= 100
+GROUP BY playerID
+ORDER BY batting_average DESC
+LIMIT 5
+
+'''
+
+# Executes the SQL query b on the SQLite database connected via con and stores the results in a pandas DataFrame named results. 
+results = pd.read_sql_query(e, con)
+
+# Prints the 'results' DataFrame
+results
+```
+
+__Highlight the Questions and Tasks__
+
+## Question|Task 3
+
+Pick any two baseball teams and compare them using a metric of your choice (average salary, home runs, number of wins, etc). Write an SQL query to get the data you need, then make a graph using Plotly Express to visualize the comparison. What do you learn?
+
+Despite BYU boasting a larger number of former students in baseball, this chart suggests that BYUI can rival BYU in terms of salary statistics. On average, BYUI players earned just $500.000 less than BYU players. BYUI players nevers have had salaries below $150.000. The only big difference has been in the maximun salary. BYU is $5,000.000 beyond BYUI max salary. This comparision can say that BYUI players are of better quality than BYU players. If BYUI were to increase its representation in professional baseball, this chart could potentially showcase even greater success for BYUI across all metrics compared to BYU.
+
+```{python}
+# Create a query to display baseball players who attended BYU-Idaho and BYU, show their salary statistics.
+# The query select the required columns, join the tables, fileter it where the WHERE name_full LIKE '%Brigham Young University%' to get both BYU and BYUI, order the salary from highest to lowest.
+f = '''
+SELECT 
+sch.name_full, 
+COUNT(s.salary) AS count_salary, 
+FORMAT(ROUND(AVG(s.salary), 1), 'C', 'en-US') AS average_salary, 
+FORMAT(MAX(s.salary), 'C', 'en-US') AS max_salary, 
+FORMAT(MIN(s.salary), 'C', 'en-US') AS min_salary
+FROM schools sch
+JOIN collegeplaying cp ON sch.schoolID = cp.schoolID
+JOIN salaries s ON cp.playerID = s.playerID
+WHERE sch.name_full LIKE '%Brigham Young University%'
+GROUP BY sch.name_full
+ORDER BY count_salary DESC
+
+'''
+# Executes the SQL query b on the SQLite database connected via con and stores the results in a pandas DataFrame named results. 
+results = pd.read_sql_query(f, con)
+
+# Reshape the DataFrame into long-form format
+results_long = results.melt(id_vars='name_full', value_vars=['count_salary', 'average_salary', 'max_salary', 'min_salary'],  var_name='Statistic', value_name='Value')
+
+# Create the chart using Plotly Express
+fig = px.bar(results_long, x='name_full', y='Value', color='Statistic', title='BYU or BYUI?', labels={'name_full': 'School', 'Value': 'Salary Statistics', 'Statistic': 'Statistic'}, barmode='group')
+
+# Show the chart
+fig.show()
+
+```

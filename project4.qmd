@@ -1,0 +1,228 @@
+---
+title: "Client Report - Project 4"
+subtitle: "Course DS 250"
+author: "Luis F Mendoza"
+format:
+  html:
+    self-contained: true
+    page-layout: full
+    title-block-banner: true
+    toc: true
+    toc-depth: 3
+    toc-location: body
+    number-sections: false
+    html-math-method: katex
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-copy: hover
+    code-tools:
+        source: false
+        toggle: true
+        caption: See code
+execute: 
+  warning: false
+    
+---
+
+```{python}
+#| label: libraries
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import seaborn as sns
+import matplotlib
+
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import metrics
+from sklearn import tree
+from sklearn.metrics import confusion_matrix
+from xgboost import XGBClassifier
+```
+
+
+## Elevator pitch
+
+Asbestos has been used for many industrys from construction to car brakes. Since 1970 asbestos was regulated and prohibited In the USA for the construction industry. The State of Colorado missed recording important data about the year when dwellings were built. Do you live in the State of Colorado and want to know if your dwelling has built with or without asbestos? Check this study out to know it. 
+
+```{python}
+#| label: project data
+#| code-summary: Read and format project data
+# Include and execute your code here
+dwellings_ml = pd.read_csv("https://raw.githubusercontent.com/byuidatascience/data4dwellings/master/data-raw/dwellings_ml/dwellings_ml.csv")
+```
+
+__Highlight the Questions and Tasks__
+
+## QUESTION|TASK 1
+
+Create 2-3 charts that evaluate potential relationships between the home variables and before 1980. Explain what you learn from the charts that could help a machine learning algorithm.
+
+First of all, it is good to understand how real state has been in the last before and after asbestos prohibition in 1980.
+We can clearly see that the constructions of dwellings drecrease significantly from that year and it had a huge recovering in the year 2000.
+
+```{python}
+# Histogram of Year Built
+fig = px.histogram(dwellings_ml, x='yrbuilt', nbins=20, title='Distribution of Year Built')
+fig.update_layout(xaxis_title='Year Built', yaxis_title='Frequency')
+fig.add_vline(x=1980, line_dash="dash", line_color="red", annotation_text="Year 1980")
+fig.show()
+```
+
+This graph shows us some good clues to start. We can say that dwellings with 10 thousand squared feet and below 5 million dollars of selling price were built before 1980. So, if your house fit those caractheristics, it most probably was built before asbestos' prohibition.
+
+```{python}
+# Scatter Plot of Live Area vs. Selling Price
+fig = px.scatter(dwellings_ml, x='livearea', y='sprice', color='before1980', title='Living Area vs. Selling Price by Year Built')
+fig.update_layout(xaxis_title='Living Area', yaxis_title='Selling Price', legend_title='Before 1980')
+fig.show()
+```
+
+
+## QUESTION|TASK 2
+
+Build a classification model labeling houses as being built “before 1980” or “during or after 1980”. Your goal is to reach or exceed 90% accuracy. Explain your final model choice (algorithm, tuning parameters, etc) and describe what other models you tried.
+
+_type your results and analysis here_
+
+```{python}
+dwellings_ml.columns
+
+x = dwellings_ml.filter(['livearea', 'sprice'])
+y = dwellings_ml.before1980
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.30, random_state=222)
+
+```
+
+```{python}
+# Create a decision tree
+classifier_DT = DecisionTreeClassifier(max_depth=37)
+
+# Fit the decision tree
+classifier_DT.fit(x_train, y_train)
+
+# Test the decision tree (make predictions)
+y_predicted_DT = classifier_DT.predict(x_test)
+
+# Evaluate the decision tree
+accuracy_DT = metrics.accuracy_score(y_test, y_predicted_DT)
+confusion_matrix_DT = confusion_matrix(y_test, y_predicted_DT)
+
+# Display the results
+print("Decision Tree Model:")
+print("Accuracy:", accuracy_DT)
+print("\nConfusion Matrix:")
+print(confusion_matrix_DT)
+
+# Interpretation of Confusion Matrix:
+TP = confusion_matrix_DT[0, 0]
+TN = confusion_matrix_DT[1, 1]
+FP = confusion_matrix_DT[0, 1]
+FN = confusion_matrix_DT[1, 0]
+
+print("\nConfusion Matrix Interpretation:")
+print(f"True Positives (TP): {TP} instances were correctly predicted as 'before 1980'.")
+print(f"True Negatives (TN): {TN} instances were correctly predicted as 'during or after 1980'.")
+print(f"False Positives (FP): {FP} instances were incorrectly predicted as 'before 1980' when they were actually 'during or after 1980'.")
+print(f"False Negatives (FN): {FN} instances were incorrectly predicted as 'during or after 1980' when they were actually 'before 1980'.")
+
+```
+
+```{python}
+# Feature importance
+classifier_DT.feature_importances_
+feature_df = pd.DataFrame({'features': ['livearea', 'sprice'], 'importance': classifier_DT.feature_importances_})
+# Sort
+sorted_features = feature_df.sort_values(by='importance', ascending=False)
+print(sorted_features.to_markdown(index=False))
+
+```
+
+
+## QUESTION|TASK 3
+
+Justify your classification model by discussing the most important features selected by your model. This discussion should include a chart and a description of the features.
+
+
+```{python}
+# Plotting the feature importance
+fig3 = px.bar(sorted_features, x='features', y='importance', 
+             title='Feature Importance for Before 1980 Classification',
+             labels={'features': 'Features', 'importance': 'Importance'},
+             color='importance',
+             color_continuous_scale='Viridis')
+
+# Customize the axis labels
+fig3.update_xaxes(title_text='Features')
+fig3.update_yaxes(title_text='Importance')
+
+# Show the plot
+fig3.show()
+
+```
+
+
+## QUESTION|TASK 4
+
+Describe the quality of your classification model using 2-3 different evaluation metrics. You also need to explain how to interpret each of the evaluation metrics you use.
+
+
+```{python}
+# Feature selection
+features = ['livearea', 'sprice']
+
+# Select features and target variable
+X = dwellings_ml[features]
+y = dwellings_ml['before1980']
+
+# Encoding categorical variables (if any)
+X = pd.get_dummies(X)
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Choose a model and tune hyperparameters
+model = XGBClassifier(learning_rate=0.1, max_depth=3, n_estimators=100)
+model.fit(X_train, y_train)
+
+# Predict on the test set
+y_pred = model.predict(X_test)
+
+# Evaluate the model
+accuracy = accuracy_score(y_test, y_pred)
+conf_matrix = confusion_matrix(y_test, y_pred)
+classification_rep = classification_report(y_test, y_pred)
+
+# Print metrics
+print(f"Accuracy: {accuracy * 100:.2f}%")
+print("\nConfusion Matrix:\n", conf_matrix)
+print("\nClassification Report:\n", classification_rep)
+
+
+
+```
+
+
+```{python}
+# Visualize confusion matrix
+fig_conf_matrix = px.imshow(conf_matrix,
+                            labels=dict(x="Predicted", y="True", color="Count"),
+                            x=['Predicted Before 1980', 'Predicted During/After 1980'],
+                            y=['True Before 1980', 'True During/After 1980'],
+                            color_continuous_scale="Viridis")
+
+# Set the title of the plot
+fig_conf_matrix.update_layout(title_text="Confusion Matrix",
+                              xaxis_title="Predicted",
+                              yaxis_title="True")
+
+# Show the plot
+fig_conf_matrix.show()
+
+```
